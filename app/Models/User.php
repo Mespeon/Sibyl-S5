@@ -52,11 +52,23 @@ class User extends Authenticatable implements JWTSubject {
     }
 
     public function getJWTCustomClaims() {
-        return [];
+        // Encode user roles into token.
+        $role = $this->load('role:user_id,role_id');
+        $roleRemapped = array_map(function ($item) {
+            return $item['role_id'];
+        }, $role['role']->toArray());
+
+        return [
+            'roles' => $roleRemapped
+        ];
     }
 
     public function account_status() {
-        return $this->hasOne(Statuses::class, 'id', 'status_id');
+        return $this->hasOne(AccountStatuses::class, 'id', 'status_id');
+    }
+
+    public function role() {
+        return $this->hasMany(UserRoles::class, 'user_id', 'id');
     }
 
     public function student_profile() {

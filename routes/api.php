@@ -21,9 +21,24 @@ Route::prefix('v1')->group(function () {
         Route::post('login', ['uses' => 'AuthorizationController@login']);
         Route::post('logout', ['uses' => 'AuthorizationController@logout']);
     });
+
+    Route::get('selections', ['uses' => 'SelectionsController@getSelection']);
     
     Route::prefix('user')->group(function () {
 
+    });
+
+    Route::prefix('admin')->middleware('admin.access')->group(function () {
+        Route::prefix('roles')->group(function () {
+            Route::get('/', ['uses' => 'AdministratorController@retrieveRoles']);
+            Route::post('/add', []);
+            Route::put('/update', []);
+            Route::delete('/remove', []);
+        });
+
+        Route::prefix('permissions')->group(function () {
+
+        });
     });
 });
 

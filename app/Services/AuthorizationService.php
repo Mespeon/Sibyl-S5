@@ -136,4 +136,32 @@ class AuthorizationService {
             throw new ServerErrorException("An error has occurred while attempting to create account: {$e->getMessage()}", '', '');
         }
     }
+
+    /**
+     * Finds a user by username to determine existence.
+     */
+    public function findUser($username) {
+        return $this->users->where('username', $username)->exists();
+    }
+
+    /**
+     * Retrieves all user's roles.
+     */
+    public function retrieveUserRoles($data) {
+        return $this->userRoles
+        ->where('user_id', $data['user_id'])
+        ->with('role')
+        ->get();
+    }
+
+    /**
+     * Finds a user role by role ID to determine existence.
+     */
+    public function findUserRole($data) {
+        $where = [
+            ['user_id', '=', $data['user_id']],
+            ['role_id', '=', $data['role_id']]
+        ];
+        return $this->userRoles->where($where)->exists();
+    }
 }

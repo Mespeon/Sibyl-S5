@@ -14,7 +14,7 @@ use App\Models\User;
 
 use App\Exceptions\UnprocessableEntityException;
 use App\Exceptions\ServerErrorException;
-use Illuminate\Validation\UnauthorizedException;
+use App\Exceptions\NotFoundException;
 
 class AuthorizationController extends Controller {
     protected $users, $authorizationService;
@@ -180,6 +180,10 @@ class AuthorizationController extends Controller {
 
         try {
             // Attempt to login the user.
+            if (!$this->authorizationService->findUser($request->username)) {
+                throw new NotFoundException('Account is not registered.');
+            }
+
             $credentials = $request->only(['username', 'password']);
             if (!$token = auth()->attempt($credentials)) {
                 $response['message'] = 'Incorrect username or password.';
@@ -192,6 +196,9 @@ class AuthorizationController extends Controller {
                 'message' => 'Successfully logged in.',
                 'data' => $accessToken->original
             ];
+        }
+        catch (NotFoundException $notFound) {
+            throw new NotFoundException($notFound->getMessage());
         }
         catch (\Exception $e) {
             throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());

@@ -15,7 +15,8 @@ class DatabaseSeeder extends Seeder
             RolesSeeder::class,
             AccountStatusesSeeder::class,
             DepartmentsSeeder::class,
-            CoursesSeeder::class
+            CoursesSeeder::class,
+            AdminsSeeder::class
         ];
         $this->call($seederClasses);
     }
