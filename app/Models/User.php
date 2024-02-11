@@ -8,7 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable {
+class User extends Authenticatable implements JWTSubject {
     use HasFactory, Notifiable;
 
     /**
@@ -59,11 +59,19 @@ class User extends Authenticatable {
         return $this->hasOne(Statuses::class, 'id', 'status_id');
     }
 
+    public function student_profile() {
+        return $this->hasOne(UserStudentProfiles::class, 'user_id', 'id');
+    }
+
     public function setNewUser($data) {
         foreach ($data as $key => $value) {
             $this->$key = $value;
         }
         $this->save();
         return $this;
+    }
+
+    public function deleteUserAccount($data) {
+        return $this->where('id', $data['user_id'])->delete();
     }
 }

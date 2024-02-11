@@ -14,6 +14,7 @@ use App\Models\User;
 
 use App\Exceptions\UnprocessableEntityException;
 use App\Exceptions\ServerErrorException;
+use Illuminate\Validation\UnauthorizedException;
 
 class AuthorizationController extends Controller {
     protected $users, $authorizationService;
@@ -93,7 +94,7 @@ class AuthorizationController extends Controller {
         try {
             $this->validate($request, [
                 // Desired username
-                'username' => 'required_if:is_third_party_login,0|string|min:8|max:16|unique:users,deleted_at,NULL',
+                'username' => 'required_if:is_third_party_login,0|string|min:8|max:16|unique:users',
                 // Desired password
                 'password' => [
                     'required_if:is_third_party_login,0',
@@ -138,8 +139,12 @@ class AuthorizationController extends Controller {
 
         try {
             // Attempt to create the account, profile, role, and department rows for this user.
+            // If user is registering as a student, create a student profile for them as well.
             $createFullAccount = $this->authorizationService->createUserAccount($request);
-            // If the registration is for a student, we may fork an additional call to built the student's student_profile.
+            $response = [
+                'message' => 'Account registered.',
+                'data' => $createFullAccount
+            ];
         }
         catch (\Exception $e) {
             throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());
@@ -148,6 +153,15 @@ class AuthorizationController extends Controller {
         return response()->json($response, $status);
     }
 
+    /**
+     * Login
+     * 
+     * @unauthenticated
+     * @verb POST
+     * @path api/v1/login
+     * @param Request
+     * @return Response
+     */
     public function login(Request $request) {
         $response = $this->getBlankResponse();
         $status = 200;
@@ -155,7 +169,9 @@ class AuthorizationController extends Controller {
         try {
             $this->validate($request, [
                 'username' => 'required|string',
-                'password' => 'required|string'
+                'password' => 'required_if:third_party_login,0|nullable|string',
+                'third_party_login' => 'required|boolean',
+                'third_party_type' => 'required_if:third_party_login,1|string'
             ]);
         }
         catch (ValidationException $e) {
@@ -163,7 +179,44 @@ class AuthorizationController extends Controller {
         }
 
         try {
+            // Attempt to login the user.
+            $credentials = $request->only(['username', 'password']);
+            if (!$token = auth()->attempt($credentials)) {
+                $response['message'] = 'Incorrect username or password.';
+                return response()->json($response, 401);
+            }
 
+            $accessToken = $this->authorizationService->respondWithToken($token);
+
+            $response = [
+                'message' => 'Successfully logged in.',
+                'data' => $accessToken->original
+            ];
+        }
+        catch (\Exception $e) {
+            throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());
+        }
+
+        return response()->json($response, $status);
+    }
+
+    /**
+     * Logout
+     * 
+     * @authenticated
+     * @verb POST
+     * @path api/v1/auth/logout
+     * @param Request
+     * @return Response
+     */
+    public function logout(Request $request) {
+        $response = $this->getBlankResponse();
+        $status = 200;
+
+        try {
+            // Logout user then invalidate/blacklist the token.
+            Auth::logout(true);
+            $response['message'] = 'Logged out.';
         }
         catch (\Exception $e) {
             throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());

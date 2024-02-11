@@ -14,12 +14,20 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::prefix('auth')->group(function () {
-    Route::get('guest', ['uses' => 'AuthorizationController@generateGuestAccessToken']);
-    Route::post('register', ['uses' => 'AuthorizationController@register']);
+Route::prefix('v1')->group(function () {
+    Route::prefix('auth')->group(function () {
+        Route::get('guest', ['uses' => 'AuthorizationController@generateGuestAccessToken']);
+        Route::post('register', ['uses' => 'AuthorizationController@register']);
+        Route::post('login', ['uses' => 'AuthorizationController@login']);
+        Route::post('logout', ['uses' => 'AuthorizationController@logout']);
+    });
+    
+    Route::prefix('user')->group(function () {
+
+    });
 });
 
-Route::prefix('missilis')->group(function () {
+Route::prefix('mwpsb')->group(function () {
     Route::get('about', function () {
         $resparams = [
             'codename' => env('APP_NAME'),
