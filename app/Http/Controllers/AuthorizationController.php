@@ -9,13 +9,11 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
 
 use App\Services\AuthorizationService;
-
 use App\Models\User;
-
 use App\Exceptions\UnprocessableEntityException;
 use App\Exceptions\ServerErrorException;
 use App\Exceptions\NotFoundException;
-
+use App\Jobs\DispatchForgotPasswordEmail;
 class AuthorizationController extends Controller {
     protected $users, $authorizationService;
 
@@ -30,7 +28,8 @@ class AuthorizationController extends Controller {
             'except' => [
                 'generateGuestAccessToken',
                 'register',
-                'login'
+                'login',
+                'forgotPassword'
             ]
         ]);
     }
@@ -116,9 +115,11 @@ class AuthorizationController extends Controller {
                 // Last name of user
                 'last_name' => 'required|string|max:100',
                 // Email address of user
-                'email_address' => 'required|email',
+                'email_address' => 'required|email|unique:user_profiles',
                 // Contact number of user
                 'contact_number' => 'required|string',
+                // School that this user belongs to
+                'school' => 'required_if:role,3|required_if:role,4|numeric',
                 // Parent department of user
                 'department' => 'required|numeric',
                 // Role of registering user
@@ -224,6 +225,93 @@ class AuthorizationController extends Controller {
             // Logout user then invalidate/blacklist the token.
             Auth::logout(true);
             $response['message'] = 'Logged out.';
+        }
+        catch (\Exception $e) {
+            throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());
+        }
+
+        return response()->json($response, $status);
+    }
+
+    /**
+     * Forgot Password
+     * 
+     * Begins a forgot password process flow for the user.
+     * 
+     * @unauthenticated
+     * @verb POST
+     * @path api/v1/auth/forgot-password
+     * @param Request
+     * @return Response
+     */
+    public function forgotPassword(Request $request) {
+        $response = $this->getBlankResponse();
+        $status = 200;
+
+        try {
+            // Validate request.
+            $this->validate($request, [
+                'email_address' => 'required|email'
+            ]);
+
+            // Check if email address exists.
+            if (!$this->authorizationService->findUserByEmail($request->email_address)) {
+                throw new NotFoundException('Email address is not registered, or may be incorrect.');
+            }
+
+            // Retrieve user data.
+            $userProfile = $this->authorizationService->retrieveUserByEmail($request->email_address);
+
+            // Generate a password reset token for this user.
+            $passwordResetClaims = $this->authorizationService->generatePasswordResetAccessToken([
+                'subject' => $userProfile->first()['user_id'],
+                'validity' => 15
+            ]);
+
+            $passwordResetToken = $this->authorizationService->constructAccessToken($passwordResetClaims);
+            $rehashedToken = md5($passwordResetToken['token']);
+
+            $response['message'] = 'An email containing a password reset link is sent to the address provided.';
+
+            // Queue the email using jobs for asynchronous processing.
+            DispatchForgotPasswordEmail::dispatch($request->email_address, $rehashedToken)->delay(Date::now()->addSeconds(5));
+        }
+        catch (ValidationException $ve) {
+            throw new UnprocessableEntityException('Unable to process request due to incorrect input.', $ve->errors());
+        }
+        catch (NotFoundException $nfe) {
+            throw new NotFoundException($nfe->getMessage());
+        }
+        catch (\Exception $e) {
+            throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());
+        }
+
+        return response()->json($response, $status);
+    }
+
+    /**
+     * Reset Password
+     * 
+     * Resets password from a forgot password process flow.
+     * 
+     * @authenticated
+     * @verb POST
+     * @path api/v1/reset-password
+     * @param Request
+     * @param Response
+     */
+    public function resetPassword(Request $request) {
+        $response = $this->getBlankResponse();
+        $status = 200;
+
+        try {
+            // Validate request.
+            $this->validate($request, [
+                
+            ]);
+        }
+        catch (ValidationException $ve) {
+            throw new UnprocessableEntityException('Unable to process request due to incorrect input.', $ve->errors());
         }
         catch (\Exception $e) {
             throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());

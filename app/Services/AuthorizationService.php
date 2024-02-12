@@ -17,25 +17,29 @@ use App\Models\UserProfiles;
 use App\Models\UserStudentProfiles;
 use App\Models\UserRoles;
 use App\Models\UserDepartments;
+use App\Models\UserSchools;
 
 use App\Exceptions\UnprocessableEntityException;
 use App\Exceptions\ServerErrorException;
 
 class AuthorizationService {
-    protected $users, $userProfiles, $userStudentProfiles, $userRoles, $userDepartments;
+    protected $users, $userProfiles, $userStudentProfiles, $userRoles, 
+    $userDepartments, $userSchools;
 
     public function __construct(
         User $users,
         UserProfiles $userProfiles,
         UserStudentProfiles $userStudentProfiles,
         UserRoles $userRoles,
-        UserDepartments $userDepartments
+        UserDepartments $userDepartments,
+        UserSchools $userSchools
     ) {
         $this->users = $users;
         $this->userProfiles = $userProfiles;
         $this->userStudentProfiles = $userStudentProfiles;
         $this->userRoles = $userRoles;
         $this->userDepartments = $userDepartments;
+        $this->userSchools = $userSchools;
     }
     /**
      * Generate Guest Access Token Claims
@@ -61,6 +65,24 @@ class AuthorizationService {
         return $guestAccessClaims;
     }
 
+    public function generatePasswordResetAccessToken($data) {
+        $iss = new Issuer('Sibyl-System');
+        $sub = $data['subject'];
+        $aud = 'user';
+        $iat = new IssuedAt(Date::now());
+        $exp = new Expiration(Date::now()->addMinutes($data['validity']));
+
+        $passwordResetAccessClaims = [
+            'iad' => $iat,
+            'exp' => $exp,
+            'aud' => $aud,
+            'iss' => $iss,
+            'sub' => $sub
+        ];
+
+        return $passwordResetAccessClaims;
+    }
+
     /**
      * Construct Access Token
      * 
@@ -71,7 +93,7 @@ class AuthorizationService {
         $payload = JWTFactory::make($makeClaim);
         $token = JWTAuth::encode($payload);
         $tokenResponse = $this->respondWithToken($token->get());
-        return ['payload' => $payload, 'token' => $tokenResponse->original['token']];
+        return ['payload' => $payload, 'token' => $tokenResponse->original['access_token']];
     }
 
     /**
@@ -94,13 +116,14 @@ class AuthorizationService {
         $profile = $data->only(['first_name', 'middle_name', 'last_name', 'email_address', 'contact_number']);
         $role = $data->only(['role']);
         $department = $data->only(['department']);
+        $school = $data->only(['school']);
 
         // If the registering user uses a Student role, then create params for student profile.
         $studentProfile = ($data->role == 3) ? $data->only(['course', 'year', 'section']) : null;
 
         try {
             // Create user account.
-            $createUserAccountTransaction = DB::transaction(function () use ($account, $profile, $role, $department, $studentProfile) {
+            $createUserAccountTransaction = DB::transaction(function () use ($account, $profile, $role, $department, $studentProfile, $school) {
                 $user = $this->users->setNewUser($account);
 
                 // Assign a user ID to profile, role, and department.
@@ -127,6 +150,15 @@ class AuthorizationService {
                     $this->userStudentProfiles->setNewUserStudentProfile($studentProfile);
                 }
 
+                // If a school ID is set, create an entry for the user.
+                if ($school) {
+                    $school['user_id'] = $user->id;
+                    $school['school_id'] = $school['school'];
+                    unset($school['school']);
+
+                    $this->userSchools->setNewUserSchool($school);
+                }
+
                 return ['account' => $user];
             }, 1);
 
@@ -142,6 +174,20 @@ class AuthorizationService {
      */
     public function findUser($username) {
         return $this->users->where('username', $username)->exists();
+    }
+
+    /**
+     * Finds a user by email address to determine existence.
+     */
+    public function findUserByEmail($email) {
+        return $this->userProfiles->where('email_address', $email)->exists();
+    }
+
+    /**
+     * Retrieve user data by email.
+     */
+    public function retrieveUserByEmail($email) {
+        return $this->userProfiles->where('email_address', $email)->get();
     }
 
     /**

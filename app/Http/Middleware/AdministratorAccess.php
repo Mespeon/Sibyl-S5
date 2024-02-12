@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Arr;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -31,7 +30,7 @@ class AdministratorAccess
         try {
             $payload = Auth::payload();
             // Check if user has an admin role, or if it exists.
-            if (!$this->authorizationService->findUserRole(['user_id' => $payload['sub'], 'role_id' => 1]) || !Arr::has($payload['roles'], 1)) {
+            if (!$this->authorizationService->findUserRole(['user_id' => $payload['sub'], 'role_id' => 1]) || !in_array(1, $payload['roles'])) {
                 throw new NotAuthorizedException('User is not allowed to access the endpoint.');
             }
         }
