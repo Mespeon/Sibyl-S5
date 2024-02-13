@@ -18,13 +18,14 @@ use App\Models\UserStudentProfiles;
 use App\Models\UserRoles;
 use App\Models\UserDepartments;
 use App\Models\UserSchools;
+use App\Models\PasswordResetTokens;
 
 use App\Exceptions\UnprocessableEntityException;
 use App\Exceptions\ServerErrorException;
 
 class AuthorizationService {
     protected $users, $userProfiles, $userStudentProfiles, $userRoles, 
-    $userDepartments, $userSchools;
+    $userDepartments, $userSchools, $passwordResetTokens;
 
     public function __construct(
         User $users,
@@ -32,7 +33,8 @@ class AuthorizationService {
         UserStudentProfiles $userStudentProfiles,
         UserRoles $userRoles,
         UserDepartments $userDepartments,
-        UserSchools $userSchools
+        UserSchools $userSchools,
+        PasswordResetTokens $passwordResetTokens
     ) {
         $this->users = $users;
         $this->userProfiles = $userProfiles;
@@ -40,7 +42,9 @@ class AuthorizationService {
         $this->userRoles = $userRoles;
         $this->userDepartments = $userDepartments;
         $this->userSchools = $userSchools;
+        $this->passwordResetTokens = $passwordResetTokens;
     }
+
     /**
      * Generate Guest Access Token Claims
      * 
@@ -209,5 +213,13 @@ class AuthorizationService {
             ['role_id', '=', $data['role_id']]
         ];
         return $this->userRoles->where($where)->exists();
+    }
+
+    public function setNewPasswordResetToken($data) {
+        foreach ($data as $key => $value) {
+            $this->passwordResetTokens->$key = $value;
+        }
+        $this->passwordResetTokens->save();
+        return $this->passwordResetTokens;
     }
 }

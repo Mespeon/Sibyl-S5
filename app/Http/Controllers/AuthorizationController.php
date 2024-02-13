@@ -29,7 +29,8 @@ class AuthorizationController extends Controller {
                 'generateGuestAccessToken',
                 'register',
                 'login',
-                'forgotPassword'
+                'forgotPassword',
+                'testRecordAttendance'
             ]
         ]);
     }
@@ -270,6 +271,8 @@ class AuthorizationController extends Controller {
 
             $passwordResetToken = $this->authorizationService->constructAccessToken($passwordResetClaims);
             $rehashedToken = md5($passwordResetToken['token']);
+
+            // Record password reset token.
 
             $response['message'] = 'An email containing a password reset link is sent to the address provided.';
 
