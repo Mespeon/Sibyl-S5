@@ -19,8 +19,16 @@ class UserProfiles extends Model {
 
     protected $hidden = ['deleted_at'];
 
-    public function userAccount() {
-        return $this->belongsTo(User::class, 'user_id', 'id');
+    public function user_account() {
+        return $this->hasOne(User::class, 'id', 'user_id');
+    }
+
+    public function student_profile() {
+        return $this->hasOne(UserStudentProfiles::class, 'user_id', 'user_id');
+    }
+
+    public function faculty_profile() {
+        return $this->hasOne(UserFacultyProfiles::class, 'user_id', 'user_id');
     }
 
     public function setNewUserProfile($data) {

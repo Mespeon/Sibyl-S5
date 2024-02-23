@@ -188,6 +188,13 @@ class AuthorizationService {
     }
 
     /**
+     * Retrieves a user password hash by user ID.
+     */
+    public function retrieveUserPassword(int $userId) {
+        return $this->users->find($userId)->makeVisible('password');
+    }
+
+    /**
      * Retrieve user data by email.
      */
     public function retrieveUserByEmail($email) {
@@ -215,11 +222,38 @@ class AuthorizationService {
         return $this->userRoles->where($where)->exists();
     }
 
+    /**
+     * Records the token issued when resetting passwords.
+     */
     public function setNewPasswordResetToken($data) {
         foreach ($data as $key => $value) {
             $this->passwordResetTokens->$key = $value;
         }
         $this->passwordResetTokens->save();
         return $this->passwordResetTokens;
+    }
+
+    /**
+     * Updates a user's password.
+     * 
+     * @param int data.user_id
+     * @param string data.password
+     */
+    public function updateUserPassword(array $data) {
+        $data['password'] = Hash::make($data['password']);
+        return tap($this->users->where('id', $data['user_id'])->update([
+            'password' => $data['password']
+        ]));
+    }
+
+    /**
+     * Verifies if the provided password matches with the old one.
+     * 
+     * @param int $data.user_id - ID of user changing their passwords.
+     * @param string $data.current_password - Current password as sent from user input.
+     */
+    public function verifyPassword(array $data) {
+        $userPassword = $this->retrieveUserPassword($data['user_id']);
+        return password_verify($data['current_password'], $userPassword->password);
     }
 }

@@ -110,11 +110,11 @@ class AuthorizationController extends Controller {
                 // Password confirmation - should match with password.
                 'password_confirmation' => 'required_if:is_third_party_login,0|string|same:password',
                 // First name of user
-                'first_name' => 'required|string|max:100',
+                'first_name' => 'required|string|max:50',
                 // Optional - middle name of user
-                'middle_name' => 'nullable|string|max:100',
+                'middle_name' => 'nullable|string|max:50',
                 // Last name of user
-                'last_name' => 'required|string|max:100',
+                'last_name' => 'required|string|max:50',
                 // Email address of user
                 'email_address' => 'required|email|unique:user_profiles',
                 // Contact number of user
@@ -273,6 +273,12 @@ class AuthorizationController extends Controller {
             $rehashedToken = md5($passwordResetToken['token']);
 
             // Record password reset token.
+            $recordPasswordResetParams = [
+                'user_id' => $userProfile->first()['user_id'],
+                'email_address' => $request->email_address,
+                'token' => $passwordResetToken['token']
+            ];
+            $this->authorizationService->setNewPasswordResetToken($recordPasswordResetParams);
 
             $response['message'] = 'An email containing a password reset link is sent to the address provided.';
 
@@ -310,8 +316,33 @@ class AuthorizationController extends Controller {
         try {
             // Validate request.
             $this->validate($request, [
-                
+                // Desired password
+                'password' => [
+                    'required',
+                    'string',
+                    'min:8',
+                    'max:32',
+                    'regex:/[a-z]/',
+                    'regex:/[A-Z]/',
+                    'regex:/[0-9]/',
+                    'regex:/[@$!%*#?&]/',
+                    'confirmed'
+                ],
+                // Password confirmation - should match with password.
+                'password_confirmation' => 'required|string|same:password',
             ]);
+
+            // If it passes validation, take the user ID from the token then update the user's password.
+            $userToken = Auth::payload()->get('sub');
+            $updateUserPassword = $this->authorizationService->updateUserPassword([
+                'user_id' => $userToken,
+                'password' => $request->password
+            ]);
+
+            $response['message'] = 'Password has been reset. You may now login using your new password.';
+
+            // Invalidate the sent token.
+            Auth::invalidate(true);
         }
         catch (ValidationException $ve) {
             throw new UnprocessableEntityException('Unable to process request due to incorrect input.', $ve->errors());

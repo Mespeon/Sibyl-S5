@@ -27,7 +27,18 @@ Route::prefix('v1')->group(function () {
     Route::get('selections', ['uses' => 'SelectionsController@getSelection']);
     
     Route::prefix('user')->group(function () {
+        Route::prefix('profile')->group(function () {
+            Route::get('/', ['uses' => 'UserController@getProfile']);
+            Route::post('update', ['uses' => 'UserController@updateProfile']);
 
+            // TO-DO: Hide behind a permission middleware.
+            Route::post('student/update', ['uses' => 'UserController@updateStudentProfile']);
+            Route::post('faculty/profile', ['uses' => 'UserController@updateFacultyProfile']);
+        });
+
+        Route::prefix('account')->group(function () {
+            Route::post('change-password', ['uses' => 'UserController@changePassword']);
+        });
     });
 
     Route::prefix('admin')->middleware('admin.access')->group(function () {
