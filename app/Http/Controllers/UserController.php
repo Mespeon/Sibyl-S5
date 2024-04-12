@@ -84,7 +84,6 @@ class UserController extends Controller {
                 'first_name' => 'required|string|max:50',
                 'middle_name' => 'nullable|string',
                 'last_name' => 'required|string|max:50',
-                'email_address' => 'required|email|unique:user_profiles',
                 'contact_number' => 'required|string'
             ]);
 
@@ -98,66 +97,6 @@ class UserController extends Controller {
                 'message' => 'Profile updated.',
                 'data' => $updateProfile
             ];
-        }
-        catch (ValidationException $ve) {
-            throw new UnprocessableEntityException('Unable to process request due to incorrect input.', $ve->errors());
-        }
-        catch (\Exception $e) {
-            throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());
-        }
-
-        return response()->json($response, $status);
-    }
-
-    /**
-     * Update Student Profile
-     * 
-     * Updates a student profile. 
-     * 
-     * This requires the manage:students permission.
-     * 
-     * @authenticated
-     * @verb POST
-     * @path api/v1/user/profile/student/update
-     * @param Request $request
-     * @return Response
-     */
-    public function updateStudentProfile(Request $request) {
-        $response = $this->getBlankResponse();
-        $status = 200;
-
-        try {
-            $this->validate($request, []);
-        }
-        catch (ValidationException $ve) {
-            throw new UnprocessableEntityException('Unable to process request due to incorrect input.', $ve->errors());
-        }
-        catch (\Exception $e) {
-            throw new ServerErrorException('A server error has occurred while handling this request.', $request->path(), $e->getMessage());
-        }
-
-        return response()->json($response, $status);
-    }
-
-    /**
-     * Update Faculty Profile
-     * 
-     * Updates a faculty profile.
-     * 
-     * This requires the manage:faculty permission.
-     * 
-     * @authenticated
-     * @verb POST
-     * @path api/v1/user/profile/faculty/update
-     * @param Request $request
-     * @return Response
-     */
-    public function updateFacultyProfile(Request $request) {
-        $response = $this->getBlankResponse();
-        $status = 200;
-        
-        try {
-            $this->validate($request, []);
         }
         catch (ValidationException $ve) {
             throw new UnprocessableEntityException('Unable to process request due to incorrect input.', $ve->errors());
@@ -223,6 +162,10 @@ class UserController extends Controller {
                 'user_id' => $userId,
                 'password' => $request->password
             ]);
+
+            // Return a success response then invalidate current token.
+            $response['message'] = 'Your password has been changed. Please log in again using your new password.';
+            Auth::logout(true);
         }
         catch (NotAuthorizedException $nae) {
             throw new NotAuthorizedException($nae->getMessage());

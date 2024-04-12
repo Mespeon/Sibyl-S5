@@ -8,24 +8,19 @@ use Illuminate\Support\Facades\Hash;
 
 use App\Models\User;
 use App\Models\UserProfiles;
-use App\Models\UserStudentProfiles;
-use App\Models\UserFacultyProfiles;
 use App\Models\UserRoles;
-use App\Models\UserDepartments;
-use App\Models\UserSchools;
+
+use App\Traits\CustomPagination;
 
 use App\Exceptions\ServerErrorException;
 
 class UserService {
+    use CustomPagination;
 
     public function __construct(
         protected User $users,
         protected UserProfiles $userProfiles,
-        protected UserStudentProfiles $userStudentProfiles,
-        protected UserFacultyProfiles $userFacultyProfiles,
-        protected UserRoles $userRoles,
-        protected UserDepartments $userDepartments,
-        protected UserSchools $userSchools
+        protected UserRoles $userRoles
     ) {}
 
     /**
@@ -51,41 +46,6 @@ class UserService {
             $subquery->select($select)
             ->join('account_statuses', 'account_statuses.id', 'status_id');
         }])
-        ->when(in_array(3, $data['roles']), function ($query) {
-            $query->with(['student_profile' => function ($subquery) {
-                $select = [
-                    'user_student_profiles.user_id',
-                    'user_student_profiles.department_id',
-                    'departments.code AS department_code',
-                    'departments.name AS department_name',
-                    'user_student_profiles.course_id',
-                    'courses.code AS course_code',
-                    'courses.name AS course_name',
-                    'user_student_profiles.year_level',
-                    'user_student_profiles.section'
-                ];
-
-                $subquery->select($select)
-                ->join('departments', 'departments.id', 'user_student_profiles.department_id')
-                ->join('courses', 'courses.id', 'user_student_profiles.course_id');
-            }]);
-        })
-        ->when(in_array(4, $data['roles']), function ($query) {
-            $query->with(['faculty_profile' => function ($subquery) {
-                $select = [
-                    'user_faculty_profiles.user_id',
-                    'user_faculty_profiles.department_id',
-                    'departments.code AS department_code',
-                    'departments.name AS department_name',
-                    'user_faculty_profiles.employee_number',
-                    'user_faculty_profiles.position_name'
-                ];
-
-                $subquery->select($select)
-                ->join('departments', 'departments.id', 'user_student_profiles.department_id')
-                ->join('courses', 'courses.id', 'user_student_profiles.course_id');
-            }]);
-        })
         ->where('user_id', $data['user_id'])
         ->first();
     }
@@ -108,5 +68,50 @@ class UserService {
         catch (\Exception $e) {
             throw new ServerErrorException("An error has occurred while attempting to update profile: {$e->getMessage()}", '', '');
         }
+    }
+
+    /**
+     * Retrieve Users List
+     * 
+     * @param array data - array containing filters, if any.
+     * @param Carbon query - a Carbon object containing the query parameters for the request.
+     */
+    public function retrieveUsersList(array $data, array $query) {
+        $where = [];
+        $orWhere = [];
+        $order = ['users.created_at', 'DESC'];
+        $daterange = null;
+
+        if (isset($data['search']) && $data['search']) {
+            array_push($where, ['users.username', 'LIKE', '%'.$data['search'].'%']);
+        }
+
+        if (isset($data['order_by']) && $data['order_by']) {
+            $order = explode(',', $data['order_by']);
+        }
+
+        if (isset($data['daterange']) && $data['daterange']) {
+            $requestedDaterange = explode(',', $data['daterange']);
+            $daterange = [$requestedDaterange[0]." 00:00:00", $requestedDaterange[1]." 23:59:59"];
+        }
+
+        $collection = $this->users
+        ->with(['role' => function ($query) {
+            $query->addSelect([
+                'roles.key AS role_key',
+                'roles.name AS role_display_name'
+            ])
+            ->leftJoin('roles', 'roles.id', 'user_roles.role_id');
+        }])
+        ->with(['profile', 'account_status'])
+        ->where($where)
+        ->when($daterange, function ($query) use ($daterange) {
+            $query->whereBetween('users.created_at', [$daterange[0], $daterange[1]]);
+        })
+        ->orderBy($order[0], $order[1])
+        ->paginate($data['list_size'] ?? env('DEFAULT_LIST_SIZE'), ['*'], 'page')
+        ->appends($query);
+
+        return $this->customPagination($collection);
     }
 }

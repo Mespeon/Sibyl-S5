@@ -41,7 +41,7 @@ class SelectionsService {
     }
 
     public function getRoles($data) {
-        return $this->roles->get();
+        return $this->roles::all();
     }
 
     public function getAccountStatuses($data) {

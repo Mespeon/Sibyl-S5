@@ -19,16 +19,13 @@ class UserProfiles extends Model {
 
     protected $hidden = ['deleted_at'];
 
+    // Serializes and returns timestamps as is.
+    protected function serializeDate($date) {
+        return $date->format('Y-m-d H:i:s');
+    }
+
     public function user_account() {
         return $this->hasOne(User::class, 'id', 'user_id');
-    }
-
-    public function student_profile() {
-        return $this->hasOne(UserStudentProfiles::class, 'user_id', 'user_id');
-    }
-
-    public function faculty_profile() {
-        return $this->hasOne(UserFacultyProfiles::class, 'user_id', 'user_id');
     }
 
     public function setNewUserProfile($data) {

@@ -119,20 +119,10 @@ class AuthorizationController extends Controller {
                 'email_address' => 'required|email|unique:user_profiles',
                 // Contact number of user
                 'contact_number' => 'required|string',
-                // School that this user belongs to
-                'school' => 'required_if:role,3|required_if:role,4|numeric',
-                // Parent department of user
-                'department' => 'required|numeric',
                 // Role of registering user
                 'role' => 'required|numeric',
                 // Flag whether this registration is from a third-party login.
-                'is_third_party_login' => 'required|boolean',
-                // Course taken by the user. Required if role is Student.
-                'course' => 'required_if:role,3|numeric',
-                // Current year of the user. Required if role is Student.
-                'year' => 'required_if:role,3|numeric',
-                // Section of the user. Required if role is Student.
-                'section' => 'required_if:role,3|string'
+                'is_third_party_login' => 'required|boolean'
             ]);
         }
         catch (ValidationException $e) {
@@ -140,8 +130,7 @@ class AuthorizationController extends Controller {
         }
 
         try {
-            // Attempt to create the account, profile, role, and department rows for this user.
-            // If user is registering as a student, create a student profile for them as well.
+            // Attempt to create the account, profile, and role rows for this user.
             $createFullAccount = $this->authorizationService->createUserAccount($request);
             $response = [
                 'message' => 'Account registered.',

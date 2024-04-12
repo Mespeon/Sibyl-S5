@@ -14,34 +14,24 @@ use Tymon\JWTAuth\Claims\Expiration;
 
 use App\Models\User;
 use App\Models\UserProfiles;
-use App\Models\UserStudentProfiles;
 use App\Models\UserRoles;
-use App\Models\UserDepartments;
-use App\Models\UserSchools;
 use App\Models\PasswordResetTokens;
 
 use App\Exceptions\UnprocessableEntityException;
 use App\Exceptions\ServerErrorException;
 
 class AuthorizationService {
-    protected $users, $userProfiles, $userStudentProfiles, $userRoles, 
-    $userDepartments, $userSchools, $passwordResetTokens;
+    protected $users, $userProfiles, $userRoles, $passwordResetTokens;
 
     public function __construct(
         User $users,
         UserProfiles $userProfiles,
-        UserStudentProfiles $userStudentProfiles,
         UserRoles $userRoles,
-        UserDepartments $userDepartments,
-        UserSchools $userSchools,
         PasswordResetTokens $passwordResetTokens
     ) {
         $this->users = $users;
         $this->userProfiles = $userProfiles;
-        $this->userStudentProfiles = $userStudentProfiles;
         $this->userRoles = $userRoles;
-        $this->userDepartments = $userDepartments;
-        $this->userSchools = $userSchools;
         $this->passwordResetTokens = $passwordResetTokens;
     }
 
@@ -119,15 +109,10 @@ class AuthorizationService {
         $account = $data->only(['username', 'password']);
         $profile = $data->only(['first_name', 'middle_name', 'last_name', 'email_address', 'contact_number']);
         $role = $data->only(['role']);
-        $department = $data->only(['department']);
-        $school = $data->only(['school']);
-
-        // If the registering user uses a Student role, then create params for student profile.
-        $studentProfile = ($data->role == 3) ? $data->only(['course', 'year', 'section']) : null;
 
         try {
             // Create user account.
-            $createUserAccountTransaction = DB::transaction(function () use ($account, $profile, $role, $department, $studentProfile, $school) {
+            $createUserAccountTransaction = DB::transaction(function () use ($account, $profile, $role) {
                 $user = $this->users->setNewUser($account);
 
                 // Assign a user ID to profile, role, and department.
@@ -137,31 +122,8 @@ class AuthorizationService {
                 $role['role_id'] = (int) $role['role'];
                 unset($role['role']);
 
-                $department['department_id'] = (int) $department['department'];
-                unset($department['department']);
-
                 $this->userProfiles->setNewUserProfile($profile);
                 $this->userRoles->setNewUserRole($role);
-                $this->userDepartments->setNewUserDepartment($department);
-
-                // If a student profile was set, attempt to create it as well.
-                if ($studentProfile) {
-                    $studentProfile['user_id'] = $user->id;
-                    $studentProfile['course_id'] = $studentProfile['course'];
-                    $studentProfile['year_level'] = $studentProfile['year'];
-                    unset($studentProfile['course'], $studentProfile['year']);
-
-                    $this->userStudentProfiles->setNewUserStudentProfile($studentProfile);
-                }
-
-                // If a school ID is set, create an entry for the user.
-                if ($school) {
-                    $school['user_id'] = $user->id;
-                    $school['school_id'] = $school['school'];
-                    unset($school['school']);
-
-                    $this->userSchools->setNewUserSchool($school);
-                }
 
                 return ['account' => $user];
             }, 1);
