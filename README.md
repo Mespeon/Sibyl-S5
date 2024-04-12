@@ -7,6 +7,11 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## About
+Sibyl S5 is a "boilerplate" project for backend development. It includes basic API functionalities such as user management, role and permission management, and selections; as well as some administrative functions.
+
+It is in active development and new features may be added in the future.
+
 ## Generating a new public-private key pair
 
 The steps below assume that a Linux subsystem is installed in a Windows PC.
